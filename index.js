@@ -59,7 +59,7 @@ function validatePermission(req, res, next) {
 function existingUserById (req, res, next){
   const id = req.params.id;
   try{
-    client.query("SELECT id FROM users WHERE id=$1",
+    client.query("SELECT * FROM users WHERE id=$1",
     [id],
     function(err, result) {
       if(err){
@@ -74,6 +74,28 @@ function existingUserById (req, res, next){
     console.log(error);
   }
 }
+
+function existingCarById (req, res, next){
+  const id = req.params.id;
+  try{
+    client.query("SELECT * FROM car WHERE id_car=$1",
+    [id],
+    function(err, result) {
+      if(err){
+        return console.error("Erro ao executar a query SELECT", err);
+      }
+      if(result.rows[0].id_car == id){
+        return next();
+      }
+      return res.status(400).json({message: "dont exists!"})
+    })
+  }catch (error) {
+    console.log(error);
+  }
+}
+
+// CRUD de usuarios
+// -----------------------------------------------------------
 
 app.get("/", (request, response) => {
   console.log("Response ok");
@@ -166,35 +188,37 @@ app.delete("/users/:id",(req, res) => {
   }
 });
 
+//CRUD de Produtos
+//-----------------------------------------------------------------------------
 
-app.get("/users", (req, res) => {
+app.get("/product", (req, res) => {
   try {
-    client.query("SELECT * FROM users", function
+    client.query("SELECT * FROM car", function
       (err, result) {
       if (err) {
         return console.error("Erro ao executar a qryde SELECT", err);
       }
       res.send(result.rows);
-      console.log("Chamou get usuarios");
+      console.log("Chamou get products");
     });
   } catch (error) {
     console.log(error);
   }
 });
 
-app.post("/users", validatePermission, (req, res) => {
+app.post("/product", (req, res) => {
   try {
     console.log("Chamou post", req.body);
-    const { name, email, password, permissions } = req.body;
+    const { name, model, year, km_road} = req.body;
     client.query(
-      "INSERT INTO users (name, email, password, permissions) VALUES ($1, $2, $3, $4) RETURNING * ",
-      [name, email, password, permissions],
+      "INSERT INTO car (name, model, year, km_road) VALUES ($1, $2, $3, $4) RETURNING * ",
+      [name, model, year, km_road],
       function (err, result) {
         if (err) {
           return console.error("Erro ao executar a qry de INSERT", err);
         }
         const { id } = result.rows[0];
-        res.setHeader("id", `${id}`);
+        res.setHeader("id_car", `${id}`);
         res.status(201).json(result.rows[0]);
         console.log(result);
       }
@@ -204,20 +228,20 @@ app.post("/users", validatePermission, (req, res) => {
   }
 });
 
-app.put("/users/:id", existingUserById, (req, res) => {
+app.put("/product/:id", existingCarById, (req, res) => {
   try {
     console.log("Chamou update", req.body);
     const id = req.params.id;
-    const { name, email, password } = req.body;
+    const { name, model, year, km_road } = req.body;
     client.query(
-      "UPDATE users SET name=$1, email=$2, password=$3 WHERE id =$4 ",
-      [name, email, password, id],
+      "UPDATE car SET name=$1, model=$2, year=$3, km_road=$4 WHERE id_car =$5 ",
+      [name, model, year, km_road, id],
       function (err, result) {
         if (err) {
           return console.error("Erro ao executar a qry de UPDATE", err);
         } else {
-          res.setHeader("id", id);
-          res.status(202).json({ id: id });
+          res.setHeader("id_car", id);
+          res.status(202).json({ id_car: id });
           console.log(result);
         }
       }
@@ -227,12 +251,12 @@ app.put("/users/:id", existingUserById, (req, res) => {
   }
 });
 
-app.delete("/users/:id",(req, res) => {
+app.delete("/product/:id",(req, res) => {
   try {
     console.log("Chamou delete /:id " + req.params.id);
     const id = req.params.id;
     client.query(
-      "DELETE FROM users WHERE id = $1",
+      "DELETE FROM car WHERE id_car = $1",
       [id],
       function (err, result) {
         if (err) {
