@@ -7,7 +7,10 @@ const {
   pgConnection
 } = process.env;
 
+const strKey = "acessoGeral";
+
 module.exports = {
   port: PORT,
-  urlConnection: pgConnection
+  urlConnection: pgConnection,
+  strKey: strKey
 }

@@ -3,6 +3,8 @@ const { Client } = require('pg');
 const cors = require("cors");
 const bodyparser = require("body-parser");
 const config = require("./config");
+const jwt = require("jsonwebtoken");
+const mid = require("./middleware");
 
 const app = express();
 app.use(express.json());
@@ -24,80 +26,20 @@ client.connect(function (err) {
 });
 
 //middleware
-function validatePermission(req, res, next) {
-  const { permissions } = req.body;
 
-  if (permissions === 'administrador' || permissions === 'cliente')
-    return next();
-  else
-    return res.status(400).json({ error: "Permissão inválida!" });
-}
 
-// function existingUser(req, res, next) {
-//   const { email, password } = req.body;
-//   try {
-//     client.query("SELECT email, password FROM users", function (err, result) {
-//       if (err) {
-//         return console.error("Erro ao executar a query SELECT", err);
-//       }
-//       const call = result.rows.map((value) => {
-//         console.log(value)
-//         if (value.email === email && value.password === password) {
-//           return true;
-//         }
-//       })
-//       if (call) {
-//         return next();
-//       }
-//     })
-//     return res.status(404).json({ Message: "email ou senha inválidos!!" })
-//   } catch (error) {
-//     console.log(error);
-//   }
-// }
 
-function existingUserById (req, res, next){
-  const id = req.params.id;
-  try{
-    client.query("SELECT * FROM users WHERE id=$1",
-    [id],
-    function(err, result) {
-      if(err){
-        return console.error("Erro ao executar a query SELECT", err);
-      }
-      if(result.rows[0].id == id){
-        return next();
-      }
-      return res.status(400).json({message: "dont exists!"})
-    })
-  }catch (error) {
-    console.log(error);
-  }
-}
-
-function existingCarById (req, res, next){
-  const id = req.params.id;
-  try{
-    client.query("SELECT * FROM car WHERE id_car=$1",
-    [id],
-    function(err, result) {
-      if(err){
-        return console.error("Erro ao executar a query SELECT", err);
-      }
-      if(result.rows[0].id_car == id){
-        return next();
-      }
-      return res.status(400).json({message: "dont exists!"})
-    })
-  }catch (error) {
-    console.log(error);
-  }
-}
 
 // CRUD de usuarios
 // -----------------------------------------------------------
 
 app.get("/", (request, response) => {
+
+  client.query("SELECT email, password FROM users", function
+    (err, result){
+      console.log(result.rows)
+    }
+  )
   console.log("Response ok");
   response.send({ Message: "OK" })
 });
@@ -117,7 +59,7 @@ app.get("/users", (req, res) => {
   }
 });
 
-app.post("/users", validatePermission, (req, res) => {
+app.post("/users/sign", mid.validatePermission, (req, res) => {
   try {
     console.log("Chamou post", req.body);
     const { name, email, password, permissions } = req.body;
@@ -139,7 +81,43 @@ app.post("/users", validatePermission, (req, res) => {
   }
 });
 
-app.put("/users/:id", existingUserById, (req, res) => {
+app.post("/users/login", (req, res) => {
+  try {
+    var verify = false;
+    var jsonUser = {
+      id: "",
+      name: "",
+      email: "",
+      password: "",
+      permissions:""
+    }
+    const { email, password } = req.body;
+    
+    client.query(
+      "SELECT * FROM users", function(err, result){
+        if (err) {
+          return console.error("Erro ao executar a qry de INSERT", err);
+        }
+        result.rows.forEach((value) => {
+          if(value.email === email && value.password === password){
+            jsonUser.id = value.id;
+            jsonUser.name = value.name;
+            jsonUser.email = value.email;
+            jsonUser.password = value.password;
+            jsonUser.permissions = value.permissions;
+            res.status(200).json({ status: "Sucesso", token: jwt.sign({ jsonUser }, config.strKey) });
+          }
+        })
+      }  
+    )
+
+
+  } catch (erro) {
+    console.log(erro);
+  }
+})
+
+app.put("/users/:id", mid.existingUserById, (req, res) => {
   try {
     console.log("Chamou update", req.body);
     const id = req.params.id;
@@ -228,7 +206,7 @@ app.post("/product", (req, res) => {
   }
 });
 
-app.put("/product/:id", existingCarById, (req, res) => {
+app.put("/product/:id", mid.existingCarById, (req, res) => {
   try {
     console.log("Chamou update", req.body);
     const id = req.params.id;
