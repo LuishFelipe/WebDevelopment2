@@ -25,20 +25,15 @@ client.connect(function (err) {
   });
 });
 
-//middleware
-
-
-
-
 // CRUD de usuarios
 // -----------------------------------------------------------
 
 app.get("/", (request, response) => {
 
   client.query("SELECT email, password FROM users", function
-    (err, result){
-      console.log(result.rows)
-    }
+    (err, result) {
+    console.log(result.rows)
+  }
   )
   console.log("Response ok");
   response.send({ Message: "OK" })
@@ -89,26 +84,34 @@ app.post("/users/login", (req, res) => {
       name: "",
       email: "",
       password: "",
-      permissions:""
+      permissions: ""
     }
     const { email, password } = req.body;
-    
+console.log(email, password);
     client.query(
-      "SELECT * FROM users", function(err, result){
+      "SELECT id,name,email, password, permissions FROM users WHERE email = $1",[email], function (err, result) {
         if (err) {
-          return console.error("Erro ao executar a qry de INSERT", err);
+          return console.error("Erro ao executar a qry de SELECT", err);
         }
-        result.rows.forEach((value) => {
-          if(value.email === email && value.password === password){
-            jsonUser.id = value.id;
-            jsonUser.name = value.name;
-            jsonUser.email = value.email;
-            jsonUser.password = value.password;
-            jsonUser.permissions = value.permissions;
-            res.status(200).json({ status: "Sucesso", token: jwt.sign({ jsonUser }, config.strKey) });
+        if (result.rowCount <= 0) {
+          res.status(200).send({status: "email errado"});
+        } else  {
+          let data = result.rows[0];
+          console.log(data);
+          if ( data.password === password) { //value.email === email &&
+            jsonUser.id = data.id;
+            jsonUser.name = data.name;
+            jsonUser.email = data.email;
+            jsonUser.password = data.password;
+            jsonUser.permissions = data.permissions;
+            res.status(200).send({ status: "Sucesso", token: jwt.sign({ jsonUser }, config.strKey) });
+          } 
+          else {
+            console.log(data);
+            res.status(200).send({status:"senha errada"});
           }
-        })
-      }  
+        }    
+      }
     )
 
 
@@ -140,7 +143,7 @@ app.put("/users/:id", mid.existingUserById, (req, res) => {
   }
 });
 
-app.delete("/users/:id",(req, res) => {
+app.delete("/users/:id", (req, res) => {
   try {
     console.log("Chamou delete /:id " + req.params.id);
     const id = req.params.id;
@@ -187,7 +190,7 @@ app.get("/product", (req, res) => {
 app.post("/product", (req, res) => {
   try {
     console.log("Chamou post", req.body);
-    const { name, model, year, km_road} = req.body;
+    const { name, model, year, km_road } = req.body;
     client.query(
       "INSERT INTO car (name, model, year, km_road) VALUES ($1, $2, $3, $4) RETURNING * ",
       [name, model, year, km_road],
@@ -229,7 +232,7 @@ app.put("/product/:id", mid.existingCarById, (req, res) => {
   }
 });
 
-app.delete("/product/:id",(req, res) => {
+app.delete("/product/:id", (req, res) => {
   try {
     console.log("Chamou delete /:id " + req.params.id);
     const id = req.params.id;
